@@ -1,4 +1,4 @@
-"""Liga o Superset à camada semântica (Cube) e cria o dashboard de exemplo.
+"""Liga o Superset à camada semântica (Cube) e cria os dashboards de exemplo.
 
 O Superset é a segunda superfície de consumo da camada semântica: ele fala com
 o Cube pela SQL API (protocolo Postgres), então enxerga `titles_overview` como
@@ -11,6 +11,9 @@ idempotente: rodar de novo só atualiza o que já existe.
 
 Roda dentro do container do Superset (ver o serviço `superset-bootstrap` no
 docker-compose.yml).
+
+Cada dashboard é descrito por um `DashboardSpec` (view do Cube, métricas e gráficos):
+títulos (`titles_overview`) e jogos (`games_overview`, crítica × público).
 """
 
 from __future__ import annotations
@@ -35,7 +38,6 @@ CUBE_SQL_PASSWORD = os.environ["CUBEJS_SQL_PASSWORD"]
 CUBE_SQL_PORT = os.environ["CUBEJS_PG_SQL_PORT"]
 
 DATABASE_NAME = "Cube — camada semântica"
-DATASET_TABLE = "titles_overview"
 DATASET_SCHEMA = "public"
 
 # Medidas do Cube vistas pelo Superset. A forma canônica na SQL API é envolver a
@@ -43,7 +45,7 @@ DATASET_SCHEMA = "public"
 # escolher a agregação. (As alternativas `AVG(...)`/`COUNT(DISTINCT ...)` também
 # existem, mas precisam casar com o tipo da medida — ver
 # docs.cube.dev/reference/core-data-apis/sql-api/query-format.)
-METRICS = [
+TITLES_METRICS = [
     {
         "metric_name": "count_titles",
         "verbose_name": "Títulos",
@@ -67,7 +69,6 @@ METRICS = [
     },
 ]
 
-DASHBOARD_TITLE = "Camada semântica — títulos"
 
 
 def cube_sqlalchemy_uri() -> str:
@@ -84,7 +85,7 @@ class ChartSpec:
     form_data: dict
 
 
-CHARTS = [
+TITLES_CHARTS = [
     ChartSpec(
         name="Nota média por país",
         description="Top 10 países por nota média (medida avg_rating do Cube).",
@@ -123,6 +124,120 @@ CHARTS = [
             "timeseries_limit_metric": "count_titles",
         },
     ),
+]
+
+
+def _measure(name: str, label: str, metric_type: str, description: str) -> dict:
+    return {
+        "metric_name": name,
+        "verbose_name": label,
+        "expression": f"MEASURE({name})",
+        "metric_type": metric_type,
+        "description": description,
+    }
+
+
+GAMES_METRICS = [
+    _measure("count_scored_releases", "Lançamentos com as duas notas", "count", "Base da comparação crítica × público."),
+    _measure("avg_critic_score", "Nota da crítica (0–100)", "avg", "Metascore médio, só em lançamentos com as duas notas."),
+    _measure("avg_user_score", "Nota do público (0–100)", "avg", "Nota de usuário média convertida para 0–100."),
+    _measure("avg_score_gap", "Distância crítica − público", "avg", "Positivo: a crítica gostou mais que o público."),
+]
+
+# Antes de 2000 há poucos jogos com as duas notas (menos de 30 por ano): a média
+# de um ano com 1 jogo é ruído, não tendência.
+SINCE_2000 = {
+    "clause": "WHERE",
+    "expressionType": "SIMPLE",
+    "subject": "release_year",
+    "operator": ">=",
+    "comparator": 2000,
+}
+
+GAMES_CHARTS = [
+    ChartSpec(
+        name="Jogos — crítica × público por ano",
+        description="Nota média da crítica e do público (0–100) por ano de lançamento.",
+        viz_type="echarts_timeseries_line",
+        form_data={
+            "viz_type": "echarts_timeseries_line",
+            "x_axis": "release_year",
+            "metrics": ["avg_critic_score", "avg_user_score"],
+            "groupby": [],
+            "adhoc_filters": [SINCE_2000],
+            "row_limit": 100,
+            "x_axis_label": "Ano de lançamento",
+            "y_axis_label": "Nota média (0–100)",
+            "y_axis_format": ".1f",
+            "show_legend": True,
+            "rich_tooltip": True,
+            "markerEnabled": True,
+        },
+    ),
+    ChartSpec(
+        name="Jogos — distância crítica − público por ano",
+        description="Positivo: a crítica gostou mais que o público. Medida avg_score_gap do Cube.",
+        viz_type="echarts_timeseries_bar",
+        form_data={
+            "viz_type": "echarts_timeseries_bar",
+            "x_axis": "release_year",
+            "metrics": ["avg_score_gap"],
+            "groupby": [],
+            "adhoc_filters": [SINCE_2000],
+            "row_limit": 100,
+            "x_axis_sort": "release_year",
+            "x_axis_sort_asc": True,
+            "x_axis_label": "Ano de lançamento",
+            "y_axis_label": "Pontos (crítica − público)",
+            "y_axis_format": ".1f",
+            "show_legend": False,
+            "rich_tooltip": True,
+        },
+    ),
+    ChartSpec(
+        name="Jogos — distância por fabricante",
+        description="Notas e distância crítica − público por fabricante da plataforma.",
+        viz_type="table",
+        form_data={
+            "viz_type": "table",
+            "query_mode": "aggregate",
+            "groupby": ["manufacturer"],
+            "metrics": ["count_scored_releases", "avg_critic_score", "avg_user_score", "avg_score_gap"],
+            "adhoc_filters": [],
+            "row_limit": 100,
+            "order_desc": True,
+            "timeseries_limit_metric": "avg_score_gap",
+        },
+    ),
+    ChartSpec(
+        name="Jogos — distância por gênero",
+        description="Notas e distância crítica − público por gênero.",
+        viz_type="table",
+        form_data={
+            "viz_type": "table",
+            "query_mode": "aggregate",
+            "groupby": ["genre"],
+            "metrics": ["count_scored_releases", "avg_critic_score", "avg_user_score", "avg_score_gap"],
+            "adhoc_filters": [],
+            "row_limit": 100,
+            "order_desc": True,
+            "timeseries_limit_metric": "avg_score_gap",
+        },
+    ),
+]
+
+
+@dataclass(frozen=True)
+class DashboardSpec:
+    title: str
+    table: str  # a view do Cube, que o Superset enxerga como tabela
+    metrics: list
+    charts: list
+
+
+DASHBOARDS = [
+    DashboardSpec("Camada semântica — títulos", "titles_overview", TITLES_METRICS, TITLES_CHARTS),
+    DashboardSpec("Jogos — crítica × público", "games_overview", GAMES_METRICS, GAMES_CHARTS),
 ]
 
 
@@ -238,10 +353,10 @@ def ensure_database(api: SupersetApi) -> int:
     return database_id
 
 
-def ensure_dataset(api: SupersetApi, database_id: int) -> int:
+def ensure_dataset(api: SupersetApi, database_id: int, table: str, metrics: list[dict]) -> int:
     for dataset in api.list("dataset"):
         if (
-            dataset["table_name"] == DATASET_TABLE
+            dataset["table_name"] == table
             and dataset["database"]["id"] == database_id
         ):
             dataset_id = dataset["id"]
@@ -253,17 +368,16 @@ def ensure_dataset(api: SupersetApi, database_id: int) -> int:
             {
                 "database": database_id,
                 "schema": DATASET_SCHEMA,
-                "table_name": DATASET_TABLE,
+                "table_name": table,
             },
         )
-        print(f"dataset: criado id={dataset_id}")
+        print(f"dataset: criado id={dataset_id} ({table})")
         trim_internal_columns(api, dataset_id)
-    metrics = with_existing_metric_ids(api, dataset_id)
-    api.update("dataset", dataset_id, {"metrics": metrics})
+    api.update("dataset", dataset_id, {"metrics": with_existing_metric_ids(api, dataset_id, metrics)})
     return dataset_id
 
 
-def with_existing_metric_ids(api: SupersetApi, dataset_id: int) -> list[dict]:
+def with_existing_metric_ids(api: SupersetApi, dataset_id: int, metrics: list[dict]) -> list[dict]:
     """A API recusa criar uma métrica com nome já usado; mandar o `id` faz o
     PUT atualizar a métrica em vez de tentar criá-la de novo."""
     existing = {
@@ -274,7 +388,7 @@ def with_existing_metric_ids(api: SupersetApi, dataset_id: int) -> list[dict]:
         {**metric, "id": existing[metric["metric_name"]]}
         if metric["metric_name"] in existing
         else metric
-        for metric in METRICS
+        for metric in metrics
     ]
 
 
@@ -301,10 +415,10 @@ def chart_payload(spec: ChartSpec, dataset_id: int, dashboard_id: int) -> dict:
     }
 
 
-def ensure_charts(api: SupersetApi, dataset_id: int, dashboard_id: int) -> list[int]:
+def ensure_charts(api: SupersetApi, dataset_id: int, dashboard_id: int, charts: list[ChartSpec]) -> list[int]:
     existing = {chart["slice_name"]: chart["id"] for chart in api.list("chart")}
     chart_ids: list[int] = []
-    for spec in CHARTS:
+    for spec in charts:
         payload = chart_payload(spec, dataset_id, dashboard_id)
         if spec.name in existing:
             chart_id = existing[spec.name]
@@ -350,25 +464,25 @@ def dashboard_position(chart_ids: list[int], title: str) -> str:
     return json.dumps(position)
 
 
-def ensure_dashboard(api: SupersetApi) -> int:
+def ensure_dashboard(api: SupersetApi, title: str) -> int:
     for dashboard in api.list("dashboard"):
-        if dashboard["dashboard_title"] == DASHBOARD_TITLE:
+        if dashboard["dashboard_title"] == title:
             print(f"dashboard: usando o existente id={dashboard['id']}")
             return dashboard["id"]
     dashboard_id = api.create(
-        "dashboard", {"dashboard_title": DASHBOARD_TITLE, "published": True}
+        "dashboard", {"dashboard_title": title, "published": True}
     )
     print(f"dashboard: criado id={dashboard_id}")
     return dashboard_id
 
 
-def layout_dashboard(api: SupersetApi, dashboard_id: int, chart_ids: list[int]) -> None:
+def layout_dashboard(api: SupersetApi, dashboard_id: int, chart_ids: list[int], title: str) -> None:
     """Grava o layout. Sem `json_metadata` no payload: mandar metadata dispara o
     `set_dash_metadata`, que reescreve chaves de estilo que não temos opinião."""
     api.update(
         "dashboard",
         dashboard_id,
-        {"position_json": dashboard_position(chart_ids, DASHBOARD_TITLE)},
+        {"position_json": dashboard_position(chart_ids, title)},
     )
     print(f"dashboard: layout atualizado (id={dashboard_id})")
 
@@ -378,14 +492,15 @@ def main() -> None:
     api.wait_until_ready()
     api.login()
     database_id = ensure_database(api)
-    dataset_id = ensure_dataset(api, database_id)
-    dashboard_id = ensure_dashboard(api)
-    chart_ids = ensure_charts(api, dataset_id, dashboard_id)
-    layout_dashboard(api, dashboard_id, chart_ids)
-    print(
-        f"pronto: {SUPERSET_URL}/superset/dashboard/{dashboard_id}/ "
-        f"(login: {SUPERSET_ADMIN_USER})"
-    )
+    for spec in DASHBOARDS:
+        dataset_id = ensure_dataset(api, database_id, spec.table, spec.metrics)
+        dashboard_id = ensure_dashboard(api, spec.title)
+        chart_ids = ensure_charts(api, dataset_id, dashboard_id, spec.charts)
+        layout_dashboard(api, dashboard_id, chart_ids, spec.title)
+        print(
+            f"pronto: {SUPERSET_URL}/superset/dashboard/{dashboard_id}/ "
+            f"({spec.title}; login: {SUPERSET_ADMIN_USER})"
+        )
 
 
 if __name__ == "__main__":
