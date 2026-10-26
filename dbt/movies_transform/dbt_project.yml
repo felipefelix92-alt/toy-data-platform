@@ -4,6 +4,11 @@ config-version: 2
 
 profile: 'movies_transform_profile'
 
+vars:
+  # Data do snapshot da fonte de jogos (Kaggle, 22/dez/2016). Ano de lançamento
+  # depois disso não é lançamento que já aconteceu.
+  games_snapshot_year: 2016
+
 models:
   movies_transform:
     trusted:
@@ -14,14 +19,22 @@ models:
         +schema: movies
       delivery:
         +schema: delivery
+      games:
+        +schema: games
     refined:
       +database: refined
       +materialized: table
       +on_table_exists: replace
       ml:
         +schema: ml
+      games:
+        +schema: games
 
 seeds:
   +database: raw
   +schema: seed_data
-  
+  movies_transform:
+    game_platforms:
+      # "2600" (Atari) seria inferido como número; a chave é texto em toda a cadeia
+      +column_types:
+        platform_key: varchar

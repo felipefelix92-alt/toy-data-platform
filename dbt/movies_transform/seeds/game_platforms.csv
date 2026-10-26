@@ -1,0 +1,32 @@
+platform_key,platform_name,manufacturer,platform_kind
+2600,Atari 2600,Atari,Console de mesa
+3DO,3DO Interactive Multiplayer,Panasonic,Console de mesa
+3DS,Nintendo 3DS,Nintendo,Portátil
+DC,Dreamcast,Sega,Console de mesa
+DS,Nintendo DS,Nintendo,Portátil
+GB,Game Boy,Nintendo,Portátil
+GBA,Game Boy Advance,Nintendo,Portátil
+GC,GameCube,Nintendo,Console de mesa
+GEN,Mega Drive / Genesis,Sega,Console de mesa
+GG,Game Gear,Sega,Portátil
+N64,Nintendo 64,Nintendo,Console de mesa
+NES,Nintendo Entertainment System,Nintendo,Console de mesa
+NG,Neo Geo,SNK,Console de mesa
+PC,PC,PC,Computador
+PCFX,PC-FX,NEC,Console de mesa
+PS,PlayStation,Sony,Console de mesa
+PS2,PlayStation 2,Sony,Console de mesa
+PS3,PlayStation 3,Sony,Console de mesa
+PS4,PlayStation 4,Sony,Console de mesa
+PSP,PlayStation Portable,Sony,Portátil
+PSV,PlayStation Vita,Sony,Portátil
+SAT,Sega Saturn,Sega,Console de mesa
+SCD,Sega CD,Sega,Console de mesa
+SNES,Super Nintendo,Nintendo,Console de mesa
+TG16,TurboGrafx-16,NEC,Console de mesa
+WS,WonderSwan,Bandai,Portátil
+Wii,Wii,Nintendo,Console de mesa
+WiiU,Wii U,Nintendo,Console de mesa
+X360,Xbox 360,Microsoft,Console de mesa
+XB,Xbox,Microsoft,Console de mesa
+XOne,Xbox One,Microsoft,Console de mesa

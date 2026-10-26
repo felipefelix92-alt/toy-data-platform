@@ -1,0 +1,38 @@
+version: 2
+
+sources:
+  - name: raw_games
+    database: raw
+    schema: raw_games
+    description: "Carga incremental (merge por `game_id`) feita por `dlt/games_pipeline.py`."
+    tables:
+      - name: games_metacritic
+        description: "Jogos do Metacritic (snapshot de dez/2016): vendas, nota da crítica e dos usuários."
+        columns:
+          - name: game_id
+            tests:
+              - unique
+              - not_null
+
+models:
+  - name: games_metacritic
+    description: >
+      Jogos tipados e normalizados, um lançamento (jogo × plataforma × ano) por linha.
+      `user_score` nulo pode ser "tbd" (sem votos suficientes) ou "sem nota" — ver
+      `user_score_status`.
+    columns:
+      - name: game_id
+        tests:
+          - unique
+          - not_null
+      - name: game_name
+        tests:
+          - not_null
+      - name: platform_key
+        tests:
+          - not_null
+      - name: user_score_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['avaliado', 'tbd', 'sem nota']

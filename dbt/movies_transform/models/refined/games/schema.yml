@@ -1,0 +1,79 @@
+version: 2
+
+models:
+  - name: dim_platform
+    description: "Dimensão de plataforma (seed `game_platforms`): nome, fabricante e tipo."
+    columns:
+      - name: platform_key
+        description: "Sigla da plataforma como vem da fonte (PS2, X360, ...)."
+        tests:
+          - unique
+          - not_null
+      - name: manufacturer
+        description: "Fabricante (Sony, Microsoft, Nintendo, Sega, PC, ...)."
+        tests:
+          - not_null
+
+  - name: dim_game_genre
+    description: "Dimensão de gênero de jogo: um gênero por linha."
+    columns:
+      - name: genre_key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_publisher
+    description: "Dimensão de publisher: um publisher por linha ('Unknown' quando ausente)."
+    columns:
+      - name: publisher_key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_game_releases
+    description: >
+      Fato de lançamentos de jogos no grão de um lançamento (jogo × plataforma × ano).
+      Medidas: nota da crítica (0–100), nota do público convertida para 0–100,
+      distância crítica − público (`score_gap`, só com as duas notas) e vendas globais.
+    columns:
+      - name: game_key
+        description: "Chave do lançamento: `nome|plataforma|ano` (a mesma `game_id` do merge do dlt)."
+        tests:
+          - unique
+          - not_null
+      - name: platform_key
+        description: "Plataforma, referência a `dim_platform`."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_platform')
+                field: platform_key
+      - name: genre_key
+        description: "Gênero, referência a `dim_game_genre`."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_game_genre')
+                field: genre_key
+      - name: publisher_key
+        description: "Publisher, referência a `dim_publisher`."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_publisher')
+                field: publisher_key
+      - name: release_year
+        description: "Ano de lançamento; nulo quando ausente ou posterior ao snapshot da fonte."
+      - name: critic_score
+        description: "Metascore da crítica (0–100)."
+      - name: user_score_100
+        description: "Nota dos usuários convertida de 0–10 para 0–100."
+      - name: score_gap
+        description: "Crítica − público (pontos, escala 0–100). Positivo: a crítica gostou mais."
+      - name: has_both_scores
+        description: "Verdadeiro quando o lançamento tem nota da crítica e do público."
+        tests:
+          - not_null
