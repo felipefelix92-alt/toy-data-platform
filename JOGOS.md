@@ -66,6 +66,15 @@ Arquivo: `dlt/data/games_metacritic.csv`.
    ```bash
    make mcp-demo-games
    ```
+8. Orquestração (pela linha de comando: no Codespaces a interface do Airflow
+   recusa o login por causa do endereço `*.app.github.dev`):
+   ```bash
+   echo "DOCKER_GID=$(stat -c %g /var/run/docker.sock)" >> .env   # uma vez, antes de subir o Airflow
+   docker compose up -d airflow-scheduler airflow-webserver airflow-dag-processor
+   docker compose exec airflow-scheduler airflow dags unpause ingest_games
+   docker compose exec airflow-scheduler airflow dags trigger ingest_games
+   docker compose exec airflow-scheduler airflow dags list-runs ingest_games   # esperado: success
+   ```
 
 ## Números esperados (para conferir)
 
