@@ -152,10 +152,13 @@ services:
       - POSTGRES_DB=postgres
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres -p 5432 -d postgres" ]
-      interval: 2s
+      # Na primeira subida (tudo baixando e inicializando ao mesmo tempo, como num
+      # Codespace novo) o Postgres demora mais que 10s; com só 2 tentativas o banco
+      # era marcado como unhealthy e derrubava o Lakekeeper inteiro.
+      interval: 3s
       timeout: 10s
-      retries: 2
-      start_period: 10s
+      retries: 20
+      start_period: 60s
     ports:
       - "5433:5432"
     volumes:
