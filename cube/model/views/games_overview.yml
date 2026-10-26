@@ -1,0 +1,28 @@
+views:
+  # Fachada plana para a pergunta "crítica × público": o Superset e o agente usam
+  # este nome e não precisam conhecer o join com a dimensão de plataforma.
+  - name: games_overview
+
+    description: >
+      Notas da crítica e do público de jogos (Metacritic), fatiáveis por ano,
+      gênero, publisher, plataforma e fabricante. As médias de comparação usam só
+      lançamentos com as duas notas.
+
+    cubes:
+      - join_path: game_releases
+        includes:
+          - release_year
+          - genre
+          - publisher
+          - count_releases
+          - count_scored_releases
+          - avg_critic_score
+          - avg_user_score
+          - avg_score_gap
+          - total_sales_mi
+
+      - join_path: game_releases.game_platforms
+        includes:
+          - name: platform_key
+            alias: platform
+          - manufacturer

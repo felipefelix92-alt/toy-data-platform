@@ -1,0 +1,99 @@
+cubes:
+  - name: game_releases
+    sql_table: refined.games.fct_game_releases
+
+    description: >
+      Fato de lançamentos de jogos (Metacritic, snapshot de dez/2016) no grão de um
+      lançamento: jogo × plataforma × ano. Responde se a nota da crítica e a do
+      público se afastaram ao longo do tempo.
+
+    joins:
+      # Fabricante vem da dimensão de plataforma (seed do dbt): muitos lançamentos
+      # para uma plataforma, então não há risco de inflar as medidas.
+      - name: game_platforms
+        relationship: many_to_one
+        sql: "{CUBE}.platform_key = {game_platforms}.platform_key"
+
+    dimensions:
+      - name: game_key
+        description: Chave do lançamento (nome|plataforma|ano) — é o grão do fato.
+        sql: game_key
+        type: string
+        primary_key: true
+
+      - name: game_name
+        description: Nome do jogo.
+        sql: game_name
+        type: string
+
+      - name: release_year
+        description: Ano de lançamento.
+        sql: release_year
+        type: number
+
+      - name: genre
+        description: Gênero do jogo (Action, Sports, Role-Playing...).
+        sql: genre_key
+        type: string
+
+      - name: publisher
+        description: Publisher do jogo.
+        sql: publisher_key
+        type: string
+
+    # As medidas de comparação usam SÓ lançamentos com as duas notas. Se a média da
+    # crítica usasse todos os jogos com metascore e a do público só os com nota de
+    # usuário, as duas médias viriam de populações diferentes e a distância entre
+    # elas não significaria nada.
+    measures:
+      - name: count_releases
+        description: Quantidade de lançamentos (com ou sem nota).
+        type: count
+
+      - name: count_scored_releases
+        description: Lançamentos com nota da crítica E do público (a base da comparação).
+        type: count
+        filters:
+          - sql: "{CUBE}.has_both_scores"
+
+      - name: avg_critic_score
+        description: Nota média da crítica (0–100), só em lançamentos com as duas notas.
+        type: avg
+        sql: "CASE WHEN {CUBE}.has_both_scores THEN {CUBE}.critic_score END"
+
+      - name: avg_user_score
+        description: Nota média do público convertida para 0–100, só em lançamentos com as duas notas.
+        type: avg
+        sql: "CASE WHEN {CUBE}.has_both_scores THEN {CUBE}.user_score_100 END"
+
+      - name: avg_score_gap
+        description: >
+          Distância média crítica − público, em pontos (escala 0–100). Positivo: a
+          crítica gostou mais que o público; negativo: o público gostou mais.
+        type: avg
+        sql: score_gap
+
+      - name: total_sales_mi
+        description: Vendas globais somadas, em milhões de unidades.
+        type: sum
+        sql: global_sales_mi
+
+  - name: game_platforms
+    sql_table: refined.games.dim_platform
+
+    dimensions:
+      - name: platform_key
+        description: Sigla da plataforma (PS2, X360, PC...).
+        sql: platform_key
+        type: string
+        primary_key: true
+
+      - name: platform_name
+        description: Nome da plataforma.
+        sql: platform_name
+        type: string
+
+      - name: manufacturer
+        description: Fabricante da plataforma (Sony, Microsoft, Nintendo, PC...).
+        sql: manufacturer
+        type: string
