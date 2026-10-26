@@ -11,3 +11,6 @@ logs/
 .scratch/
 docs/specs/
 progress.txt
+
+# variáveis locais do Compose (ex.: DOCKER_GID)
+/.env

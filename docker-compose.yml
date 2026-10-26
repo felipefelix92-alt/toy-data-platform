@@ -23,8 +23,13 @@ x-airflow-common:
     - /var/run/docker.sock:/var/run/docker.sock
   depends_on:
     - postgres
+  # O DockerOperator fala com o Docker pelo socket montado acima. No Docker Desktop o
+  # socket pertence ao grupo 0; no Linux e no Codespaces, ao grupo `docker`, cujo id
+  # varia por máquina. DOCKER_GID (no .env da raiz) entrega esse grupo ao Airflow;
+  # sem ele, vale o 0 de antes:
+  #   echo "DOCKER_GID=$(stat -c %g /var/run/docker.sock)" >> .env
   group_add:
-      - "0"
+      - "${DOCKER_GID:-0}"
 
 services:
   postgres:
