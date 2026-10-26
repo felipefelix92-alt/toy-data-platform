@@ -48,6 +48,22 @@ dlt-run: dlt-build
 	    $(DLT_IMAGE) \
 	    python filesystem_pipeline.py -t $(DLT_TABLE)
 
+# Jogos do Metacritic: carga incremental (merge/upsert) em raw.raw_games.
+# `make dlt-games` carrega tudo; `make dlt-games GAMES_MAX_YEAR=2010` carrega só até 2010
+# (para demonstrar que a carga seguinte insere apenas o que falta, sem duplicar).
+GAMES_MAX_YEAR ?=
+dlt-games: dlt-build
+	docker run --rm \
+	    --env-file $(PWD)/dlt/.env.docker \
+	    --network $(NETWORK) \
+	    $(DLT_IMAGE) \
+	    python games_pipeline.py $(if $(GAMES_MAX_YEAR),--max-year $(GAMES_MAX_YEAR),)
+
+# Contagem de linhas e de chaves distintas em raw.raw_games (evidência do merge).
+games-count:
+	docker compose exec trino trino --execute \
+	    "SELECT count(*) AS linhas, count(DISTINCT game_id) AS chaves FROM raw.raw_games.games_metacritic"
+
 dbt-shell:
 	docker run --rm -v $(PWD)/dbt/$(DBT_IMAGE):/usr/app/$(DBT_IMAGE) \
 	    -e DBT_TARGET=$(DBT_TARGET) \
@@ -89,3 +105,7 @@ mcp-test:
 
 mcp-demo:
 	mcp/.venv/bin/python mcp/demo.py
+
+# Pergunta dos jogos: a distância crítica × público mudou ao longo dos anos?
+mcp-demo-games:
+	mcp/.venv/bin/python mcp/demo.py mudou ao longo dos anos
