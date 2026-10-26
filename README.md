@@ -6,6 +6,10 @@ dbt, ganham **definições governadas** (métricas e dimensões) numa **camada s
 e são consumidos por **dois clientes diferentes**: um dashboard no Superset e um
 agente de IA via MCP. A mesma métrica nos dois — e o agente não escreve SQL.
 
+> **Extensão neste fork:** jogos do Metacritic — *a crítica e o público concordam?*
+> Nova fonte com carga incremental, modelo dimensional, medida no Cube, dashboard e
+> agente. Guia e números esperados em [`JOGOS.md`](JOGOS.md).
+
 A narrativa da aula é essa: *da tabela larga ao contexto governado*. O vocabulário
 (camada semântica, modelo semântico, métrica, grão, tabela de ponte, context
 engineering) está em [`GLOSSARY.md`](GLOSSARY.md).

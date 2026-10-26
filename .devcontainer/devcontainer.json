@@ -1,0 +1,23 @@
+{
+  // Ambiente do GitHub Codespaces para rodar o stack sem instalar Docker na máquina local.
+  // A imagem universal já traz Python, make e git; o recurso docker-in-docker dá o
+  // `docker compose` que o README usa. O stack pede ~6 GB de RAM, por isso 4 núcleos.
+  "name": "toy-data-platform",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb"
+  },
+  "forwardPorts": [8088, 8080, 4000, 8081, 9001],
+  "portsAttributes": {
+    "8088": { "label": "Superset", "onAutoForward": "silent" },
+    "8080": { "label": "Airflow", "onAutoForward": "silent" },
+    "4000": { "label": "Cube Playground", "onAutoForward": "silent" },
+    "8081": { "label": "Trino", "onAutoForward": "silent" },
+    "9001": { "label": "MinIO console", "onAutoForward": "silent" }
+  },
+  "postCreateCommand": "make mcp-install"
+}
