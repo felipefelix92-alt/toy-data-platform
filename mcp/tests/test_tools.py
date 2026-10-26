@@ -99,10 +99,39 @@ def table_of(fixture: dict[str, Any], columns: list[str]) -> dict[str, Any]:
 
 
 class ToolsTest(unittest.TestCase):
-    def test_expoe_exatamente_as_tres_ferramentas_governadas(self) -> None:
+    def test_expoe_exatamente_as_quatro_ferramentas_governadas(self) -> None:
         self.assertEqual(
             {tool.name for tool in list_tools().tools},
-            {"list_measures", "list_dimensions", "query"},
+            {"list_models", "list_measures", "list_dimensions", "query"},
+        )
+
+    def test_list_models_mostra_so_as_views_governadas(self) -> None:
+        # O servidor do teste governa só `titles_overview` (CUBE_MODEL); os cubos
+        # internos do catálogo (titles, title_genre...) não aparecem.
+        result = call_tool("list_models")
+        self.assertFalse(result.is_error)
+        view = next(cube for cube in CUBE.meta["cubes"] if cube["name"] == MODEL)
+        self.assertEqual(
+            result.structured_content,
+            {"models": [{"name": MODEL, "description": view.get("description", "")}]},
+        )
+
+    def test_view_fora_da_lista_governada_e_recusada(self) -> None:
+        before = len(CUBE.load_queries)
+        for tool, arguments in [
+            ("list_measures", {"model": "titles"}),
+            ("query", {"measures": ["count_titles"], "model": "titles"}),
+        ]:
+            result = call_tool(tool, arguments)
+            self.assertTrue(result.is_error)
+            self.assertIn("titles", result.content[0].text)
+            self.assertIn(MODEL, result.content[0].text)  # o que existe, para o modelo se corrigir
+        self.assertEqual(len(CUBE.load_queries), before)
+
+    def test_model_explicito_equivale_ao_padrao(self) -> None:
+        self.assertEqual(
+            call_tool("list_measures", {"model": MODEL}).structured_content,
+            call_tool("list_measures").structured_content,
         )
 
     def test_query_exige_uma_medida(self) -> None:
