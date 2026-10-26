@@ -1,9 +1,12 @@
 {
   // Ambiente do GitHub Codespaces para rodar o stack sem instalar Docker na máquina local.
-  // A imagem universal já traz Python, make e git; o recurso docker-in-docker dá o
-  // `docker compose` que o README usa. O stack pede ~6 GB de RAM, por isso 4 núcleos.
+  // Imagem enxuta de Python (já traz make e git) + docker-in-docker para o `docker compose`.
+  // A imagem `universal` foi descartada: com o recurso de Docker ela é reconstruída e,
+  // por trazer PyTorch e outras ferramentas, estoura o disco do Codespace
+  // ("no space left on device") antes de o ambiente subir.
+  // O stack pede ~6 GB de RAM, por isso 4 núcleos.
   "name": "toy-data-platform",
-  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bookworm",
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
